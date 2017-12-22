@@ -4,6 +4,7 @@ Available filters:
 wpaccess_shortcode
 wpaccess_blocked_message
 wpaccess_admin_menu_parent
+wpaccess_post_types
 */
 
 // Exit if accessed directly.
@@ -210,13 +211,18 @@ class WP_Access {
 	            <h4>Allowed Post Types</h4>
 	            <p><span class="description"><?php _e('Access rules will only be applied to the following post types.'); ?></span></p>
 	            <?php
+	            $post_types = array();
 	            $arr = get_post_types(array('public' => true), 'objects');
 	            foreach ($arr as $key => $value) {
+	            	$post_types[$key] = $value->label;
+	            }
+	            $post_types = apply_filters('wpaccess_post_types', $post_types);
+	            foreach ($post_types as $key => $value) {
 					echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="'.$plugin->prefix.'_allowed_post_types[]" value="'.$key.'"';
 					if (in_array($key, (array)$options['allowed_post_types'])) {
 						checked($key, $key);
 					}
-					echo '> '.$value->label.'</label>';
+					echo '> '.$value.'</label>';
 	            }
 	            ?>
         	</div>
