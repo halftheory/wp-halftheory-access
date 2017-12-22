@@ -11,8 +11,8 @@ Network: true
 
 /*
 Available filters:
-wpaccess_plugin_deactivation(string $db_prefix)
-wpaccess_plugin_uninstall(string $db_prefix)
+wpaccess_deactivation(string $db_prefix)
+wpaccess_uninstall(string $db_prefix)
 */
 
 // Exit if accessed directly.
@@ -54,7 +54,7 @@ class WP_Access_Plugin {
 		else {
 			$wpdb->query($query_single);
 		}
-		apply_filters('wpaccess_plugin_deactivation', $plugin->subclass->prefix);
+		apply_filters('wpaccess_deactivation', $plugin->subclass->prefix);
 		return;
 	}
 
@@ -82,7 +82,7 @@ class WP_Access_Plugin {
 			$wpdb->query($query_options);
 			$wpdb->query($query_postmeta);
 		}
-		apply_filters('wpaccess_plugin_uninstall', $plugin->subclass->prefix);
+		apply_filters('wpaccess_uninstall', $plugin->subclass->prefix);
 		return;
 	}
 
