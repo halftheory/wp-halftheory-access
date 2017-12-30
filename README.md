@@ -1,4 +1,4 @@
-# wp-access
+# wp-halftheory-access
 Wordpress plugin for shortcode [access] and extended access options.
 
 This plugin enables simple and effective control over user access to content contained in any post type.
@@ -31,3 +31,4 @@ The following filters are available for plugin/theme customization:
 - wpaccess_post_types
 - wpaccess_deactivation
 - wpaccess_uninstall
+- halftheory_admin_menu_parent

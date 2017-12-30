@@ -3,6 +3,7 @@
 Available filters:
 wpaccess_shortcode
 wpaccess_blocked_message
+halftheory_admin_menu_parent
 wpaccess_admin_menu_parent
 wpaccess_post_types
 */
@@ -99,7 +100,8 @@ class WP_Access {
 
 		$has_parent = false;
 		$parent_slug = $this->prefix;
-		$parent_name = apply_filters('wpaccess_admin_menu_parent', 'Halftheory');
+		$parent_name = apply_filters('halftheory_admin_menu_parent', 'Halftheory');
+		$parent_name = apply_filters('wpaccess_admin_menu_parent', $parent_name);
 
 		// set parent to nothing to skip parent menu creation
 		if (empty($parent_name)) {
