@@ -274,7 +274,6 @@ class WP_Access {
 
 	public function add_meta_boxes($post_type) {
 		$allowed_post_types = $this->get_option('allowed_post_types');
-        $allowed_post_types = apply_filters('wpaccess_post_types', $allowed_post_types);
 		if (!in_array($post_type, (array)$allowed_post_types)) {
 			return;
 		}
@@ -424,7 +423,6 @@ class WP_Access {
 		list($post_ID, $post) = $this->get_post_ID_post();
 
 		$allowed_post_types = $this->get_option('allowed_post_types');
-        $allowed_post_types = apply_filters('wpaccess_post_types', $allowed_post_types);
 		if (!in_array($post->post_type, (array)$allowed_post_types)) {
 			return;
 		}
@@ -466,7 +464,6 @@ class WP_Access {
 		list($post_ID, $post) = $this->get_post_ID_post();
 
 		$allowed_post_types = $this->get_option('allowed_post_types');
-        $allowed_post_types = apply_filters('wpaccess_post_types', $allowed_post_types);
 		if (!in_array($post->post_type, (array)$allowed_post_types)) {
 			return $str;
 		}
