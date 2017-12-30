@@ -98,10 +98,22 @@ class WP_Access {
 		}
 
 		$has_parent = false;
-		$parent_name = apply_filters('wpaccess_admin_menu_parent', 'Halftheory');
 		$parent_slug = $this->prefix;
+		$parent_name = apply_filters('wpaccess_admin_menu_parent', 'Halftheory');
 
-		// find top level menu
+		// set parent to nothing to skip parent menu creation
+		if (empty($parent_name)) {
+			add_options_page(
+				$this->plugin_title,
+				$this->plugin_title,
+				'manage_options',
+				$this->prefix,
+				__CLASS__ .'::menu_page'
+			);
+			return;
+		}
+
+		// find top level menu if it exists
 	    foreach ($GLOBALS['menu'] as $value) {
 	    	if ($value[0] == $parent_name) {
 	    		$parent_slug = $value[2];
@@ -121,6 +133,7 @@ class WP_Access {
 			);
 		}
 
+		// add the menu
 		add_submenu_page(
 			$parent_slug,
 			$this->plugin_title,
