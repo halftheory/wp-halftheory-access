@@ -33,7 +33,7 @@ class WP_Access {
 		}
 
 		// stop if not active
-		$active = $this->get_option('active');
+		$active = $this->get_option('active', false);
 		if (empty($active)) {
 			return;
 		}
@@ -201,8 +201,8 @@ class WP_Access {
 
 		// show the form
 		$options_arr = $plugin->get_options_array();
-		$options = $plugin->get_option();
-		$options = array_merge( array_fill_keys($options_arr, null), (array)$options );
+		$options = $plugin->get_option(null, array());
+		$options = array_merge( array_fill_keys($options_arr, null), $options );
 		?>
 	    <form id="<?php echo $plugin->prefix; ?>-admin-form" name="<?php echo $plugin->prefix; ?>-admin-form" method="post" action="<?php echo $_SERVER['REQUEST_URI']; ?>">
 		<?php
@@ -232,9 +232,10 @@ class WP_Access {
 	            	$post_types[$key] = $value->label;
 	            }
 	            $post_types = apply_filters('wpaccess_post_types', $post_types);
+	            $options['allowed_post_types'] = $plugin->make_array($options['allowed_post_types']);
 	            foreach ($post_types as $key => $value) {
 					echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="'.$plugin->prefix.'_allowed_post_types[]" value="'.$key.'"';
-					if (in_array($key, (array)$options['allowed_post_types'])) {
+					if (in_array($key, $options['allowed_post_types'])) {
 						checked($key, $key);
 					}
 					echo '> '.$value.'</label>';
@@ -252,9 +253,10 @@ class WP_Access {
 				if (!isset($wp_roles)) {
 					$wp_roles = new WP_Roles();
 				}
+				$options['hidden_roles'] = $plugin->make_array($options['hidden_roles']);
 				foreach ($wp_roles->role_names as $key => $value) {
 					echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="'.$plugin->prefix.'_hidden_roles[]" value="'.$key.'"';
-					if (in_array($key, (array)$options['hidden_roles'])) {
+					if (in_array($key, $options['hidden_roles'])) {
 						checked($key, $key);
 					}
 					echo '> '.$value.'</label>';
@@ -275,8 +277,8 @@ class WP_Access {
 	}
 
 	public function add_meta_boxes($post_type) {
-		$allowed_post_types = $this->get_option('allowed_post_types');
-		if (!in_array($post_type, (array)$allowed_post_types)) {
+		$allowed_post_types = $this->get_option('allowed_post_types', array());
+		if (!in_array($post_type, $allowed_post_types)) {
 			return;
 		}
 		add_meta_box(
@@ -291,7 +293,7 @@ class WP_Access {
 
 		$postmeta_arr = $this->get_postmeta_array();
 		$postmeta = get_post_meta($post->ID, $this->prefix, true);
-		$postmeta = array_merge( array_fill_keys($postmeta_arr, null), (array)$postmeta );
+		$postmeta = array_merge( array_fill_keys($postmeta_arr, null), $this->make_array($postmeta) );
 
 		// Use nonce for verification
 		wp_nonce_field(plugin_basename(__FILE__), $this->plugin_name.'::'.__FUNCTION__);
@@ -304,13 +306,14 @@ class WP_Access {
 		if (!isset($wp_roles)) {
 			$wp_roles = new WP_Roles();
 		}
-		$hidden_roles = $this->get_option('hidden_roles');
+		$hidden_roles = $this->get_option('hidden_roles', array());
+		$postmeta['roles'] = $this->make_array($postmeta['roles']);
 		foreach ($wp_roles->role_names as $role => $name) {
-			if (in_array($role, (array)$hidden_roles)) {
+			if (in_array($role, $hidden_roles)) {
 				continue;
 			}
 			echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="'.$this->prefix.'_roles[]" value="'.$role.'"';
-			if (in_array($role, (array)$postmeta['roles'])) {
+			if (in_array($role, $postmeta['roles'])) {
 				checked($role, $role);
 			}
 			echo '> '.$name.'</label>';
@@ -390,7 +393,7 @@ class WP_Access {
 			'blocked_message' => false,
 		);
 		//$atts = shortcode_atts($defaults, $atts, $this->shortcode); // removes keys not found in defaults
-		$atts = array_merge($defaults, (array)$atts);
+		$atts = array_merge($defaults, $this->make_array($atts));
 
 		$remove_quotes = function($str) {
 			return trim($str, "'".'"');
@@ -424,8 +427,8 @@ class WP_Access {
 		}
 		list($post_ID, $post) = $this->get_post_ID_post();
 
-		$allowed_post_types = $this->get_option('allowed_post_types');
-		if (!in_array($post->post_type, (array)$allowed_post_types)) {
+		$allowed_post_types = $this->get_option('allowed_post_types', array());
+		if (!in_array($post->post_type, $allowed_post_types)) {
 			return;
 		}
 
@@ -465,8 +468,8 @@ class WP_Access {
 	public function the_content($str = '') {
 		list($post_ID, $post) = $this->get_post_ID_post();
 
-		$allowed_post_types = $this->get_option('allowed_post_types');
-		if (!in_array($post->post_type, (array)$allowed_post_types)) {
+		$allowed_post_types = $this->get_option('allowed_post_types', array());
+		if (!in_array($post->post_type, $allowed_post_types)) {
 			return $str;
 		}
 
@@ -590,13 +593,13 @@ class WP_Access {
 		return $arr;
 	}
 
-	private function get_option($key = '') {
+	private function get_option($key = '', $default = array()) {
 		if (!isset($this->option)) {
 			if (is_multisite()) {
-				$option = get_site_option($this->prefix, array());
+				$option = get_site_option($this->prefix, $default);
 			}
 			else {
-				$option = get_option($this->prefix, array());
+				$option = get_option($this->prefix, $default);
 			}
 			$this->option = $option;
 		}
@@ -604,7 +607,7 @@ class WP_Access {
 			if (array_key_exists($key, $this->option)) {
 				return $this->option[$key];
 			}
-			return false;
+			return $default;
 		}
 		return $this->option;
 	}
@@ -743,7 +746,7 @@ class WP_Access {
 
 	private function blocked_message($str = '') {
 		if (empty($str)) {
-			$blocked_message = $this->get_option('blocked_message');
+			$blocked_message = $this->get_option('blocked_message', '');
 			if (!empty($blocked_message)) {
 				$str = $blocked_message;
 			}
@@ -773,7 +776,7 @@ class WP_Access {
 			'user_id',
 			'logged',
 		);
-		$postmeta = array_merge( array_fill_keys($postmeta_arr, null),  array_fill_keys($shortcode_arr, null), (array)$postmeta );
+		$postmeta = array_merge( array_fill_keys($postmeta_arr, null),  array_fill_keys($shortcode_arr, null), $this->make_array($postmeta) );
 
 		if (!empty($postmeta['roles']) || !empty($postmeta['username']) || !empty($postmeta['user_id'])) {
 			// check logged in
