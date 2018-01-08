@@ -49,6 +49,17 @@ class WP_Access {
 		add_shortcode($this->shortcode, array($this, 'shortcode'));
 		if ($this->is_front_end()) {
 			add_action('template_redirect', array($this,'template_redirect'), 20);
+			$func = function() {
+				add_action('pre_get_posts', array($this,'pre_get_posts'), 20);
+				add_filter('posts_results', array($this,'the_posts'), 20, 2);
+				add_filter('the_posts', array($this,'the_posts'), 20, 2);
+			};
+			if (wp_doing_ajax()) {
+				$func();
+			}
+			else {
+				add_action('template_redirect', $func, 30);
+			}
 			add_filter('the_content', array($this,'the_content'), 20);
 			add_filter('the_excerpt', array($this,'the_content'), 20);
 			add_filter('wp_get_nav_menu_items', array($this,'wp_get_nav_menu_items'));
@@ -57,6 +68,23 @@ class WP_Access {
 	}
 
 	/* functions-common */
+
+	private function make_array($str = '', $sep = ',') {
+		if (function_exists(__FUNCTION__)) {
+			$func = __FUNCTION__;
+			return $func($str, $sep);
+		}
+		if (is_array($str)) {
+			return $str;
+		}
+		if (empty($str)) {
+			return array();
+		}
+		$arr = explode($sep, $str);
+		$arr = array_map('trim', $arr);
+		$arr = array_filter($arr);
+		return $arr;
+	}
 
 	private function is_front_end() {
 		if (function_exists(__FUNCTION__)) {
@@ -465,6 +493,82 @@ class WP_Access {
 		return;
 	}
 
+	public function pre_get_posts($wp_query) {
+		if (empty($this->blocked_posts)) {
+			return;
+		}
+		$wp_query->set('post__not_in', array_keys($this->blocked_posts));
+		$post_parent__not_in = array();
+		foreach ($this->blocked_posts as $key => $value) {
+			$postmeta = $this->post_has_recursive_access_rules($key, $value);
+			if ($postmeta !== false) {
+				$post_parent__not_in[] = $key;
+			}
+		}
+		if (!empty($post_parent__not_in)) {
+			$wp_query->set('post_parent__not_in', $post_parent__not_in);
+		}
+	}
+
+	public function the_posts($posts, $wp_query) {
+		if (empty($posts)) {
+			return $posts;
+		}
+
+		$i = count($posts);
+		$allowed_post_types = $this->get_option('allowed_post_types', array());
+
+		foreach ($posts as $key => $post) {
+			if (!in_array($post->post_type, $allowed_post_types)) {
+				continue;
+			}
+			$post_ID = $post->ID;
+			// current post
+			// check saved
+			if (array_key_exists($post_ID, $this->blocked_posts)) {
+				unset($posts[$key]);
+				continue;
+			}
+			$postmeta = $this->post_has_access_rules($post_ID);
+			if ($postmeta !== false) {
+				if ($this->is_blocked($postmeta)) {
+					$this->blocked_posts[$post_ID] = $postmeta;
+					unset($posts[$key]);
+					continue;
+				}
+			}
+			// recursive ancestors
+			$ancestors = $this->get_ancestors($post_ID, $post->post_type);
+			if (!empty($ancestors)) {
+				foreach ($ancestors as $value) {
+					// check saved
+					if (array_key_exists($value, $this->blocked_posts)) {
+						$postmeta = $this->post_has_recursive_access_rules($value, $this->blocked_posts[$value]);
+						if ($postmeta !== false) {
+							unset($posts[$key]);
+							break;
+						}
+						continue;
+					}
+					$postmeta = $this->post_has_recursive_access_rules($value);
+					if ($postmeta !== false) {
+						if ($this->is_blocked($postmeta)) {
+							$this->blocked_posts[$value] = $postmeta;
+							unset($posts[$key]);
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		if ($i != count($posts)) {
+			$posts = array_combine( array_keys(array_fill(0, count($posts), null)), $posts );
+			$wp_query->found_posts = count($posts);
+		}
+		return $posts;
+	}
+
 	public function the_content($str = '') {
 		list($post_ID, $post) = $this->get_post_ID_post();
 
@@ -499,7 +603,11 @@ class WP_Access {
 			foreach ($ancestors as $value) {
 				// check saved
 				if (array_key_exists($value, $this->blocked_posts)) {
-					return $the_content_blocked_message($this->blocked_posts[$value]['blocked_message']);
+					$postmeta = $this->post_has_recursive_access_rules($value, $this->blocked_posts[$value]);
+					if ($postmeta !== false) {
+						return $the_content_blocked_message($this->blocked_posts[$value]['blocked_message']);
+					}
+					continue;
 				}
 				$postmeta = $this->post_has_recursive_access_rules($value);
 				if ($postmeta !== false) {
@@ -517,29 +625,39 @@ class WP_Access {
         $showItems = [];
         foreach ($items as $key => $item) {
         	$post_ID = $item->object_id;
-			$postmeta = $this->post_has_recursive_access_rules($post_ID);
-			if ($postmeta !== false) {
-				// check saved
-				if (array_key_exists($post_ID, $this->blocked_posts)) {
+        	$postmeta = array();
+			// check saved
+			if (array_key_exists($post_ID, $this->blocked_posts)) {
+				$postmeta = $this->post_has_recursive_access_rules($this->blocked_posts[$post_ID]);
+				if ($postmeta !== false) {
 					continue;
 				}
-				elseif ($this->is_blocked($postmeta)) {
-					$this->blocked_posts[$post_ID] = $postmeta;
-					continue;
+			}
+			else {
+				$postmeta = $this->post_has_recursive_access_rules($post_ID);
+				if ($postmeta !== false) {
+					if ($this->is_blocked($postmeta)) {
+						$this->blocked_posts[$post_ID] = $postmeta;
+						continue;
+					}
 				}
 			}
 			$ancestors = get_ancestors($post_ID, $item->object);
 			if (!empty($ancestors)) {
 				$blocked = false;
 				foreach ($ancestors as $value) {
-					$postmeta = $this->post_has_recursive_access_rules($value);
-					if ($postmeta !== false) {
-						// check saved
-						if (array_key_exists($value, $this->blocked_posts)) {
+					// check saved
+					if (array_key_exists($value, $this->blocked_posts)) {
+						$postmeta = $this->post_has_recursive_access_rules($value, $this->blocked_posts[$value]);
+						if ($postmeta !== false) {
 							$blocked = true;
 							break;
 						}
-						elseif ($this->is_blocked($postmeta)) {
+						continue;
+					}
+					$postmeta = $this->post_has_recursive_access_rules($value);
+					if ($postmeta !== false) {
+						if ($this->is_blocked($postmeta)) {
 							$this->blocked_posts[$value] = $postmeta;
 							$blocked = true;
 							break;
@@ -579,19 +697,6 @@ class WP_Access {
 	}
 
     /* functions */
-
-	private function make_array($str = '') {
-		if (is_array($str)) {
-			return $str;
-		}
-		if (empty($str)) {
-			return array();
-		}
-		$arr = explode(",", $str);
-		$arr = array_map('trim', $arr);
-		$arr = array_filter($arr);
-		return $arr;
-	}
 
 	private function get_option($key = '', $default = array()) {
 		if (!isset($this->option)) {
@@ -724,8 +829,10 @@ class WP_Access {
 		}
 		return false;
 	}
-	private function post_has_recursive_access_rules($post_ID) {
-		$postmeta = $this->post_has_access_rules($post_ID, $login_redirect);
+	private function post_has_recursive_access_rules($post_ID, $postmeta = array()) {
+		if (empty($postmeta)) {
+			$postmeta = $this->post_has_access_rules($post_ID);
+		}
 		if ($postmeta !== false) {
 			if (isset($postmeta['recursive'])) {
 				if (!empty($postmeta['recursive'])) {
