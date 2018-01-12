@@ -212,7 +212,16 @@ class WP_Access {
 		            	echo $updated;
 		            }
 		        	else {
-		            	echo $error;
+		        		// where there changes?
+		        		$options_old = $plugin->get_option(null, array());
+		        		ksort($options_old);
+		        		ksort($options);
+		        		if ($options_old !== $options) {
+		            		echo $error;
+		            	}
+		            	else {
+			            	echo $updated;
+		            	}
 		        	}
 				}
 				else {
