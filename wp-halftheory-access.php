@@ -2,6 +2,7 @@
 /*
 Plugin Name: WP Access
 Plugin URI: https://github.com/halftheory/wp-halftheory-access
+GitHub Plugin URI: https://github.com/halftheory/wp-halftheory-access
 Description: WP Access
 Author: Half/theory
 Author URI: https://github.com/halftheory
