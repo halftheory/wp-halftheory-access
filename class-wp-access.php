@@ -873,6 +873,9 @@ class WP_Access {
 		if (headers_sent()) {
 			return;
 		}
+		if (is_user_logged_in()) {
+			return;
+		}
 		$str = $this->blocked_message($postmeta['blocked_message']);
 		// save the message in a cookie
 		if (!empty($str)) {
