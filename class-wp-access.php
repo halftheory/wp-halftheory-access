@@ -655,7 +655,7 @@ class WP_Access {
         	$postmeta = array();
 			// check saved
 			if (array_key_exists($post_ID, $this->blocked_posts)) {
-				$postmeta = $this->post_has_recursive_access_rules($this->blocked_posts[$post_ID]);
+				$postmeta = $this->post_has_recursive_access_rules($post_ID, $this->blocked_posts[$post_ID]);
 				if ($postmeta !== false) {
 					continue;
 				}
