@@ -60,6 +60,7 @@ class WP_Access {
 			else {
 				add_action('template_redirect', $func, 30);
 			}
+			add_filter('the_content', array($this,'the_content_wpautop'), 9);
 			add_filter('the_content', array($this,'the_content'), 20);
 			add_filter('the_excerpt', array($this,'the_content'), 20);
 			add_filter('wp_get_nav_menu_items', array($this,'wp_get_nav_menu_items'));
@@ -427,9 +428,8 @@ class WP_Access {
 			'username' => '',
 			'user_id' => '',
 			'logged' => '',
-			'blocked_message' => false,
+			'blocked_message' => '',
 		);
-		//$atts = shortcode_atts($defaults, $atts, $this->shortcode); // removes keys not found in defaults
 		$atts = array_merge($defaults, $this->make_array($atts));
 
 		$remove_quotes = function($str) {
@@ -444,7 +444,7 @@ class WP_Access {
 		unset($atts['role']);
 
 		if ($this->is_blocked($atts)) {
-			$content = $this->blocked_message($atts['blocked_message']);
+			$content = $atts['blocked_message'];
 		}
 		if (!empty($content)) {
 			// apply all content filters before and including do_shortcode (priority 11)
@@ -576,6 +576,24 @@ class WP_Access {
 			$wp_query->found_posts = count($posts);
 		}
 		return $posts;
+	}
+
+	public function the_content_wpautop($str = '') {
+		if (!has_shortcode($str, $this->shortcode)) {
+			return $str;
+		}
+		// because as of April 2018 we don't trust wpautop + shortcode_unautop
+		// remove space before + after shortcode
+		$str = preg_replace("/[\n\r\t ]*(\[".$this->shortcode.")/is", "$1", $str);
+		$str = preg_replace("/(\[\/".$this->shortcode."\])[\n\r\t ]*/is", "$1", $str);
+		add_filter('the_content', array($this,'the_content_shortcode_unautop'), 10);
+		return $str;
+	}
+	public function the_content_shortcode_unautop($str = '') {
+		// remove p/br before + after shortcode
+		$str = preg_replace("/(<p>|<br \/>)(\[".$this->shortcode.")/is", "$2", $str);
+		$str = preg_replace("/(\[\/".$this->shortcode."\])(<\/p>|<br \/>)/is", "$1", $str);
+		return $str;
 	}
 
 	public function the_content($str = '') {
