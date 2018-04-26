@@ -961,12 +961,22 @@ class WP_Access {
 
 	private function has_role($roles, $user_id = null) {
 		if (is_numeric($user_id)) {
-			$user = get_userdata($user_id);
+			if (is_multisite()) {
+				$user = $this->get_ms_userdata($user_id);
+			}
+			else {
+				$user = get_userdata($user_id);
+			}
 		}
 		elseif (is_user_logged_in()) {
 			global $current_user;
-			$user = $current_user;
 			$user_id = $current_user->ID;
+			if (is_multisite()) {
+				$user = $this->get_ms_userdata($user_id);
+			}
+			else {
+				$user = $current_user;
+			}
 		}
 		if (empty($user)) {
 			return false;
@@ -988,6 +998,21 @@ class WP_Access {
 					return true;
 				}
 			}
+		}
+		return false;
+	}
+	private function get_ms_userdata($user_id) {
+		$args = array(
+			'include' => array($user_id),
+			'number' => 1,
+		);
+		$blog = get_active_blog_for_user($user_id);
+		if (!empty($blog)) {
+			$args['blog_id'] = $blog->blog_id;
+		}
+		$res = get_users($args);
+		if (!empty($res)) {
+			return $res[0];
 		}
 		return false;
 	}
