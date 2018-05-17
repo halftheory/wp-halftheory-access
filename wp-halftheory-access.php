@@ -96,6 +96,6 @@ register_activation_hook(__FILE__, array('WP_Access_Plugin', 'activation'));
 register_deactivation_hook(__FILE__, array('WP_Access_Plugin', 'deactivation'));
 function WP_Access_Plugin_uninstall() {
 	WP_Access_Plugin::uninstall();
-};
+}
 register_uninstall_hook(__FILE__, 'WP_Access_Plugin_uninstall');
 ?>

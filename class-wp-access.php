@@ -593,6 +593,7 @@ class WP_Access {
 		// remove p/br before + after shortcode
 		$str = preg_replace("/(<p>|<br \/>)(\[".$this->shortcode.")/is", "$2", $str);
 		$str = preg_replace("/(\[\/".$this->shortcode."\])(<\/p>|<br \/>)/is", "$1", $str);
+		remove_filter('the_content', array($this,'the_content_shortcode_unautop'), 10);
 		return $str;
 	}
 
