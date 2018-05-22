@@ -24,10 +24,8 @@ class WP_Access {
 
 		// admin options
 		if (!$this->is_front_end()) {
-			if (!is_multisite()) {
-				add_action('admin_menu', array($this,'admin_menu'));
-			}
-			else {
+			add_action('admin_menu', array($this,'admin_menu'));
+			if (is_multisite()) {
 				add_action('network_admin_menu', array($this,'admin_menu'));
 			}
 		}
