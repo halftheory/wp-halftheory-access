@@ -251,7 +251,7 @@ class WP_Access {
 
         <div class="postbox">
         	<div class="inside">
-	            <h4><label for="<?php echo $plugin->prefix; ?>_blocked_message">Blocked message defaults</label></h4>
+	            <h4><label for="<?php echo $plugin->prefix; ?>_blocked_message"><?php _e('Blocked message defaults'); ?></label></h4>
 	            <p><span class="description"><?php _e('This message will be shown to blocked users.'); ?> <?php _e('It can be overridden by blocked messages set on individual posts.'); ?></span></p>
 	            <textarea rows="3" cols="70" name="<?php echo $plugin->prefix; ?>_blocked_message" id="<?php echo $plugin->prefix; ?>_blocked_message"><?php echo $options['blocked_message']; ?></textarea>
         	</div>
@@ -259,7 +259,7 @@ class WP_Access {
 
         <div class="postbox">
         	<div class="inside">
-	            <h4>Allowed Post Types</h4>
+	            <h4><?php _e('Allowed Post Types'); ?></h4>
 	            <p><span class="description"><?php _e('Access rules will only be applied to the following post types.'); ?></span></p>
 	            <?php
 	            $post_types = array();
@@ -282,7 +282,7 @@ class WP_Access {
 
         <div class="postbox">
         	<div class="inside">
-	            <h4>Hidden Roles</h4>
+	            <h4><?php _e('Hidden Roles'); ?></h4>
 	            <p><span class="description"><?php _e('The following roles will be hidden from post pages.'); ?></span></p>
 	            <?php
 				global $wp_roles;
