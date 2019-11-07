@@ -25,10 +25,9 @@ Features:
 # Custom filters
 
 The following filters are available for plugin/theme customization:
-- wpaccess_shortcode
-- wpaccess_blocked_message
+- halftheory_admin_menu_parent
 - wpaccess_admin_menu_parent
-- wpaccess_post_types
 - wpaccess_deactivation
 - wpaccess_uninstall
-- halftheory_admin_menu_parent
+- wpaccess_shortcode
+- wpaccess_blocked_message
