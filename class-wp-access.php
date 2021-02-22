@@ -43,7 +43,9 @@ final class WP_Access extends Halftheory_Helper_Plugin {
 
 		// filters
 		$this->shortcode = 'access';
-		add_shortcode($this->shortcode, array($this, 'shortcode'));
+		if (!shortcode_exists($this->shortcode)) {
+			add_shortcode($this->shortcode, array($this,'shortcode'));
+		}
 		if ($this->is_front_end()) {
 			add_action('template_redirect', array($this,'template_redirect'), 20);
 			$func = function() {
@@ -490,14 +492,14 @@ final class WP_Access extends Halftheory_Helper_Plugin {
 		// remove space before + after shortcode
 		$str = preg_replace("/[\n\r\t ]*(\[".$this->shortcode.")/is", "$1", $str);
 		$str = preg_replace("/(\[\/".$this->shortcode."\])[\n\r\t ]*/is", "$1", $str);
-		add_filter('the_content', array($this,'the_content_shortcode_unautop'), 10);
+		add_filter('the_content', array($this,'the_content_shortcode_unautop'));
 		return $str;
 	}
 	public function the_content_shortcode_unautop($str = '') {
 		// remove p/br before + after shortcode
 		$str = preg_replace("/(<p>|<br \/>)(\[".$this->shortcode.")/is", "$2", $str);
 		$str = preg_replace("/(\[\/".$this->shortcode."\])(<\/p>|<br \/>)/is", "$1", $str);
-		remove_filter('the_content', array($this,'the_content_shortcode_unautop'), 10);
+		remove_filter('the_content', array($this,'the_content_shortcode_unautop'));
 		return $str;
 	}
 
@@ -769,8 +771,9 @@ final class WP_Access extends Halftheory_Helper_Plugin {
 		}
 		$login_redirect = wp_login_url();
 		$login_redirect = add_query_arg(array('redirect_to' => $this->get_current_uri()), $login_redirect);
-		wp_redirect($login_redirect);
-		exit();
+		if (wp_redirect($login_redirect)) {
+			exit;
+		}
 	}
 
 	private function is_blocked($postmeta = array()) {
