@@ -585,15 +585,7 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			$atts = shortcode_atts($defaults, $atts, $this->shortcode);
 			// resolve user input.
 			if ( ! empty($atts) ) {
-				$trim_quotes = function ( $str ) use ( &$trim_quotes ) {
-					if ( is_string($str) ) {
-						$str = trim($str, " '" . '"');
-					} elseif ( is_array($str) ) {
-						$str = array_map($trim_quotes, $str);
-					}
-					return $str;
-				};
-				$atts = array_map($trim_quotes, $atts);
+				$atts = $this->trim_quotes($atts);
 				if ( isset($atts['roles']) ) {
 					$atts['roles'] = $this->make_array($atts['roles']);
 				}
@@ -920,6 +912,21 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 		 	}
 		 	return $str;
 		}
+
+        /* functions-common */
+
+	    private function trim_quotes( $str = '' ) {
+            if ( function_exists(__FUNCTION__) ) {
+                $func = __FUNCTION__;
+                return $func($str);
+            }
+	        if ( is_string($str) ) {
+	            $str = trim($str, " \n\r\t\v\0'" . '"');
+	        } elseif ( is_array($str) ) {
+	            $str = array_map(array( $this, __FUNCTION__ ), $str);
+	        }
+	        return $str;
+	    }
     }
 
 	// Load the plugin.
