@@ -19,42 +19,43 @@ wpaccess_blocked_message
 // Exit if accessed directly.
 defined('ABSPATH') || exit;
 
-if ( ! class_exists('Halftheory_Helper_Plugin', false) && is_readable(dirname(__FILE__) . '/class-halftheory-helper-plugin.php') ) {
-	include_once dirname(__FILE__) . '/class-halftheory-helper-plugin.php';
+if ( ! class_exists('Halftheory_Helper_Plugin', false) && is_readable(__DIR__ . '/class-halftheory-helper-plugin.php') ) {
+	include_once __DIR__ . '/class-halftheory-helper-plugin.php';
 }
 
 if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_Helper_Plugin', false) ) :
+	#[AllowDynamicProperties]
 	final class Halftheory_WP_Access extends Halftheory_Helper_Plugin {
 
-        protected static $instance;
-        public static $prefix;
-        public static $active = false;
+		protected static $instance;
+		public static $prefix;
+		public static $active = false;
 		public static $blocked_posts = array();
 		public $shortcode = 'access';
 
-        /* setup */
+		/* setup */
 
-        protected function setup_globals( $plugin_basename = null, $prefix = null ) {
-            parent::setup_globals($plugin_basename, $prefix);
+		protected function setup_globals( $plugin_basename = null, $prefix = null ) {
+			parent::setup_globals($plugin_basename, $prefix);
 
-            self::$active = $this->get_options_context('db', 'active');
-        }
+			self::$active = $this->get_options_context('db', 'active');
+		}
 
-        protected function setup_actions() {
-            parent::setup_actions();
+		protected function setup_actions() {
+			parent::setup_actions();
 
-            // Stop if not active.
-            if ( empty(self::$active) ) {
-                return;
-            }
+			// Stop if not active.
+			if ( empty(self::$active) ) {
+				return;
+			}
 
-			if ( ! $this->is_front_end() ) {
+			if ( ! $this->is_public() ) {
 				// admin.
 				add_action('add_meta_boxes', array( $this, 'add_meta_boxes' ));
 				add_action('save_post', array( $this, 'save_post' ), 10, 3);
 			} else {
 				// public.
-                add_action('init', array( $this, 'init' ), 20);
+				add_action('init', array( $this, 'init' ), 20);
 				add_action('template_redirect', array( $this, 'template_redirect' ), 20);
 				$func = function () {
 					add_action('pre_get_posts', array( $this, 'pre_get_posts' ), 20);
@@ -72,37 +73,37 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 				add_filter('wp_login_errors', array( $this, 'wp_login_errors' ), 10, 2);
 			}
 
-            // shortcode.
+			// shortcode.
 			if ( ! shortcode_exists($this->shortcode) ) {
 				add_shortcode($this->shortcode, array( $this, 'shortcode' ));
 			}
-        }
+		}
 
 		public function plugin_deactivation( $network_wide ) {
 			$this->delete_transient_uninstall();
-            parent::plugin_deactivation($network_wide);
+			parent::plugin_deactivation($network_wide);
 		}
 
-        public static function plugin_uninstall() {
-            static::$instance->delete_transient_uninstall();
-            static::$instance->delete_postmeta_uninstall();
-            static::$instance->delete_option_uninstall();
-            parent::plugin_uninstall();
-        }
+		public static function plugin_uninstall() {
+			static::$instance->delete_transient_uninstall();
+			static::$instance->delete_postmeta_uninstall();
+			static::$instance->delete_option_uninstall();
+			parent::plugin_uninstall();
+		}
 
 		/* admin */
 
 		public function menu_page() {
-            $plugin = static::$instance;
+			$plugin = static::$instance;
 
-            global $title;
-            ?>
-            <div class="wrap">
-            <h2><?php echo esc_html($title); ?></h2>
+			global $title;
+			?>
+			<div class="wrap">
+			<h2><?php echo esc_html($title); ?></h2>
 
-            <?php
-            if ( $plugin->save_menu_page() ) {
-	        	$save = function () use ( $plugin ) {
+			<?php
+			if ( $plugin->save_menu_page() ) {
+				$save = function () use ( $plugin ) {
 					// get values.
 					$options = array();
 					foreach ( array_keys($plugin->get_options_context('default')) as $value ) {
@@ -113,76 +114,74 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 						if ( $plugin->empty_notzero($_POST[ $name ]) ) {
 							continue;
 						}
-						$options[ $value ] = $_POST[ $name ];
+						$options[ $value ] = wp_unslash($_POST[ $name ]);
 					}
 					// save it.
-                    $updated = '<div class="updated"><p><strong>' . esc_html__('Options saved.') . '</strong></p></div>';
-                    $error = '<div class="error"><p><strong>' . esc_html__('Error: There was a problem.') . '</strong></p></div>';
+					$updated = '<div class="updated"><p><strong>' . esc_html__('Options saved.') . '</strong></p></div>';
+					$error = '<div class="error"><p><strong>' . esc_html__('Error: There was a problem.') . '</strong></p></div>';
 					if ( ! empty($options) ) {
-                        $options = $plugin->get_options_context('input', null, array(), $options);
-                        if ( $plugin->update_option($plugin::$prefix, $options) ) {
-                            echo $updated;
-                        } else {
-                            echo $error;
-                        }
-                    } else {
-                        if ( $plugin->delete_option($plugin::$prefix) ) {
-                            echo $updated;
-                        } else {
-                            echo $updated;
-                        }
-                    }
+						$options = $plugin->get_options_context('input', null, array(), $options);
+						if ( $plugin->update_option($plugin::$prefix, $options) ) {
+							echo wp_kses_post($updated);
+						} else {
+							echo wp_kses_post($error);
+						}
+					} elseif ( $plugin->delete_option($plugin::$prefix) ) {
+						echo wp_kses_post($updated);
+					} else {
+						echo wp_kses_post($updated);
+					}
 				};
 				$save();
-	        }
+			}
 
-            // Show the form.
-            $options = $plugin->get_options_context('admin_form');
-            ?>
+			// Show the form.
+			$options = $plugin->get_options_context('admin_form');
+			?>
 
-            <form id="<?php echo esc_attr($plugin::$prefix); ?>-admin-form" name="<?php echo esc_attr($plugin::$prefix); ?>-admin-form" method="post" action="<?php echo esc_attr($_SERVER['REQUEST_URI']); ?>">
-            <?php
-            // Use nonce for verification.
-            wp_nonce_field($plugin->plugin_basename, $plugin->plugin_name . '::' . __FUNCTION__);
-            ?>
-		    <div id="poststuff">
+			<form id="<?php echo esc_attr($plugin::$prefix); ?>-admin-form" name="<?php echo esc_attr($plugin::$prefix); ?>-admin-form" method="post" action="<?php echo esc_attr(sanitize_url(wp_unslash($_SERVER['REQUEST_URI']))); ?>">
+			<?php
+			// Use nonce for verification.
+			wp_nonce_field($plugin->plugin_basename, $plugin->plugin_name . '::' . __FUNCTION__);
+			?>
+			<div id="poststuff">
 
-	        <p><label for="<?php echo esc_attr($plugin::$prefix); ?>_active"><input type="checkbox" id="<?php echo esc_attr($plugin::$prefix); ?>_active" name="<?php echo esc_attr($plugin::$prefix); ?>_active" value="1"<?php checked($options['active'], true); ?> /> <?php echo esc_html($plugin->plugin_title); ?> <?php esc_html_e('active?'); ?></label></p>
+			<p><label for="<?php echo esc_attr($plugin::$prefix); ?>_active"><input type="checkbox" id="<?php echo esc_attr($plugin::$prefix); ?>_active" name="<?php echo esc_attr($plugin::$prefix); ?>_active" value="1"<?php checked($options['active'], true); ?> /> <?php echo esc_html($plugin->plugin_title); ?> <?php esc_html_e('active?'); ?></label></p>
 
-	        <div class="postbox">
-	        	<div class="inside">
-		            <h4><label for="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message"><?php esc_html_e('Blocked message defaults'); ?></label></h4>
-		            <p><span class="description"><?php esc_html_e('This message will be shown to blocked users. It can be overridden by blocked messages set on individual posts.'); ?></span></p>
-		            <textarea rows="3" cols="70" name="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message" id="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message"><?php echo esc_textarea($options['blocked_message']); ?></textarea>
-	        	</div>
-	        </div>
+			<div class="postbox">
+				<div class="inside">
+					<h4><label for="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message"><?php esc_html_e('Blocked message defaults'); ?></label></h4>
+					<p><span class="description"><?php esc_html_e('This message will be shown to blocked users. It can be overridden by blocked messages set on individual posts.'); ?></span></p>
+					<textarea rows="3" cols="70" name="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message" id="<?php echo esc_attr($plugin::$prefix); ?>_blocked_message"><?php echo esc_textarea($options['blocked_message']); ?></textarea>
+				</div>
+			</div>
 
-	        <div class="postbox">
-	        	<div class="inside">
-		            <h4><?php esc_html_e('Allowed Post Types'); ?></h4>
-		            <p><span class="description"><?php esc_html_e('Access rules will only be applied to the following post types.'); ?></span></p>
-		            <?php
-		            $post_types = array();
-		            $arr = get_post_types(array( 'public' => true ), 'objects');
-		            foreach ( $arr as $key => $value ) {
-		            	$post_types[ $key ] = $value->label;
-		            }
-		            foreach ( $post_types as $key => $value ) {
+			<div class="postbox">
+				<div class="inside">
+					<h4><?php esc_html_e('Allowed Post Types'); ?></h4>
+					<p><span class="description"><?php esc_html_e('Access rules will only be applied to the following post types.'); ?></span></p>
+					<?php
+					$post_types = array();
+					$arr = get_post_types(array( 'public' => true ), 'objects');
+					foreach ( $arr as $key => $value ) {
+						$post_types[ $key ] = $value->label;
+					}
+					foreach ( $post_types as $key => $value ) {
 						echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr($plugin::$prefix) . '_allowed_post_types[]" value="' . esc_attr($key) . '"';
 						if ( in_array($key, $options['allowed_post_types'], true) ) {
 							checked($key, $key);
 						}
 						echo '> ' . esc_html($value) . '</label>';
-		            }
-		            ?>
-	        	</div>
-	        </div>
+					}
+					?>
+				</div>
+			</div>
 
-	        <div class="postbox">
-	        	<div class="inside">
-		            <h4><?php esc_html_e('Hidden Roles'); ?></h4>
-		            <p><span class="description"><?php esc_html_e('The following roles will be hidden from post pages.'); ?></span></p>
-		            <?php
+			<div class="postbox">
+				<div class="inside">
+					<h4><?php esc_html_e('Hidden Roles'); ?></h4>
+					<p><span class="description"><?php esc_html_e('The following roles will be hidden from post pages.'); ?></span></p>
+					<?php
 					global $wp_roles;
 					$roles = isset($wp_roles) ? $wp_roles : new WP_Roles();
 					foreach ( $roles->role_names as $key => $value ) {
@@ -191,129 +190,127 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 							checked($key, $key);
 						}
 						echo '> ' . esc_html($value) . '</label>';
-		            }
-		            ?>
-	        	</div>
-	        </div>
+					}
+					?>
+				</div>
+			</div>
 
-            <?php submit_button(__('Update'), array( 'primary', 'large' ), 'save'); ?>
+			<?php submit_button(__('Update'), array( 'primary', 'large' ), 'save'); ?>
 
-	        </div><!-- poststuff -->
-	    	</form>
+			</div><!-- poststuff -->
+			</form>
 
 			</div><!-- wrap -->
 			<?php
-        }
+		}
 
-	    public function add_meta_boxes( $post_type ) {
-            $allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
-	        if ( ! in_array($post_type, $allowed_post_types, true) ) {
-	            return;
-	        }
-	        add_meta_box(
-	            static::$prefix,
-	            $this->plugin_title,
-	            array( $this, 'add_meta_box' ),
-	            $post_type
-	        );
-	    }
+		public function add_meta_boxes( $post_type ) {
+			$allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
+			if ( ! in_array($post_type, $allowed_post_types, true) ) {
+				return;
+			}
+			add_meta_box(
+				static::$prefix,
+				$this->plugin_title,
+				array( $this, 'add_meta_box' ),
+				$post_type
+			);
+		}
 
-	    public function add_meta_box() {
-	        global $post, $wp_roles;
+		public function add_meta_box() {
+			global $post, $wp_roles;
 
-	        $postmeta_arr = $this->get_postmeta_array();
-	        $postmeta = $this->get_postmeta($post->ID);
-	        $postmeta = array_merge( array_fill_keys($postmeta_arr, null), $this->make_array($postmeta) );
+			$postmeta_arr = $this->get_postmeta_array();
+			$postmeta = $this->get_postmeta($post->ID);
+			$postmeta = array_merge( array_fill_keys($postmeta_arr, null), $this->make_array($postmeta) );
 
-	        // Use nonce for verification.
-            wp_nonce_field($plugin->plugin_basename, $plugin->plugin_name . '::' . __FUNCTION__);
+			// Use nonce for verification.
+			wp_nonce_field($plugin->plugin_basename, $plugin->plugin_name . '::' . __FUNCTION__);
 
-	        echo '<p>';
-	        esc_html_e('This content is only available to:');
-	        echo '</p>';
+			echo '<p>';
+			esc_html_e('This content is only available to:');
+			echo '</p>';
 
-	        echo '<p>';
+			echo '<p>';
 			$roles = isset($wp_roles) ? $wp_roles : new WP_Roles();
-	        $hidden_roles = $this->get_options_context('db', 'hidden_roles');
-	        $postmeta['roles'] = $this->make_array($postmeta['roles']);
-	        foreach ( $roles->role_names as $role => $name ) {
-	            if ( in_array($role, $hidden_roles, true) ) {
-	                continue;
-	            }
-	            echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_roles[]" value="' . esc_attr($role) . '"';
-	            if ( in_array($role, $postmeta['roles'], true) ) {
-	                checked($role, $role);
-	            }
-	            echo '> ' . esc_html($name) . '</label>';
-	        }
-	        echo '</p>';
+			$hidden_roles = $this->get_options_context('db', 'hidden_roles');
+			$postmeta['roles'] = $this->make_array($postmeta['roles']);
+			foreach ( $roles->role_names as $role => $name ) {
+				if ( in_array($role, $hidden_roles, true) ) {
+					continue;
+				}
+				echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_roles[]" value="' . esc_attr($role) . '"';
+				if ( in_array($role, $postmeta['roles'], true) ) {
+					checked($role, $role);
+				}
+				echo '> ' . esc_html($name) . '</label>';
+			}
+			echo '</p>';
 
-	        echo '<p>';
-	        echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_logged_in" value="1"' . checked(1, $postmeta['logged_in'], false) . '> ' . esc_html__('Logged in users') . '</label>';
-	        echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_logged_out" value="1"' . checked(1, $postmeta['logged_out'], false) . '> ' . esc_html__('Logged out users') . '</label>';
-	        echo '</p>';
+			echo '<p>';
+			echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_logged_in" value="1"' . checked(1, $postmeta['logged_in'], false) . '> ' . esc_html__('Logged in users') . '</label>';
+			echo '<label style="display: inline-block; width: 50%;"><input type="checkbox" name="' . esc_attr(static::$prefix) . '_logged_out" value="1"' . checked(1, $postmeta['logged_out'], false) . '> ' . esc_html__('Logged out users') . '</label>';
+			echo '</p>';
 
-	        echo '<p>';
-	        echo '<label><input type="checkbox" name="' . esc_attr(static::$prefix) . '_recursive" value="1"' . checked(1, $postmeta['recursive'], false) . '> ' . esc_html__('Apply these access rules to all child posts. This also removes blocked posts from menus.') . '</label>';
-	        echo '</p>';
+			echo '<p>';
+			echo '<label><input type="checkbox" name="' . esc_attr(static::$prefix) . '_recursive" value="1"' . checked(1, $postmeta['recursive'], false) . '> ' . esc_html__('Apply these access rules to all child posts. This also removes blocked posts from menus.') . '</label>';
+			echo '</p>';
 
-	        $url = $this->is_plugin_network() ? network_admin_url('admin.php?page=' . static::$prefix) : admin_url('admin.php?page=' . static::$prefix);
-	        echo '<p>Blocked message:<br/>
-	        <textarea rows="3" cols="70" name="' . esc_attr(static::$prefix) . '_blocked_message" id="' . esc_attr(static::$prefix) . '_blocked_message">' . esc_textarea($postmeta['blocked_message']) . '</textarea>
-	        <br/><span class="description">' . esc_html__('This message will be shown to blocked users.') . ' It overrides any message that was set <a href="' . esc_url($url) . '">here</a>.</span></p>';
+			$url = $this->is_plugin_network() ? network_admin_url('admin.php?page=' . static::$prefix) : admin_url('admin.php?page=' . static::$prefix);
+			echo '<p>Blocked message:<br/>
+			<textarea rows="3" cols="70" name="' . esc_attr(static::$prefix) . '_blocked_message" id="' . esc_attr(static::$prefix) . '_blocked_message">' . esc_textarea($postmeta['blocked_message']) . '</textarea>
+			<br/><span class="description">' . esc_html__('This message will be shown to blocked users.') . ' It overrides any message that was set <a href="' . esc_url($url) . '">here</a>.</span></p>';
 
-	        echo '<p>';
-	        echo '<label><input type="checkbox" name="' . esc_attr(static::$prefix) . '_login_redirect" value="1"' . checked(1, $postmeta['login_redirect'], false) . '> ' . esc_html__('Redirect blocked users to the login page.') . '</label>';
-	        echo '</p>';
-	    }
+			echo '<p>';
+			echo '<label><input type="checkbox" name="' . esc_attr(static::$prefix) . '_login_redirect" value="1"' . checked(1, $postmeta['login_redirect'], false) . '> ' . esc_html__('Redirect blocked users to the login page.') . '</label>';
+			echo '</p>';
+		}
 
-	    public function save_post( $post_ID, $post, $update ) {
-	        // verify if this is an auto save routine.
-	        // If it is our form has not been submitted, so we don't want to do anything.
-	        if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
-	            return;
-	        }
-	        if ( empty($update) ) {
-	            return;
-	        }
-	        // verify this came from the our screen and with proper authorization
-	        // because save_post can be triggered at other times
-	        if ( isset($_POST) ) {
-	            if ( isset($_POST[ $this->plugin_name . '::add_meta_box' ]) ) {
-	                if ( wp_verify_nonce($_POST[ $this->plugin_name . '::add_meta_box' ], static::$plugin_basename) ) {
-	                    // get values.
-	                    $postmeta_arr = $this->get_postmeta_array();
-	                    $postmeta = array();
-	                    foreach ( $postmeta_arr as $value ) {
-	                        $name = static::$prefix . '_' . $value;
-	                        if ( ! isset($_POST[ $name ]) ) {
-	                            continue;
-	                        }
-	                        if ( $this->empty_notzero($_POST[ $name ]) ) {
-	                            continue;
-	                        }
-	                        $postmeta[ $value ] = $_POST[ $name ];
-	                    }
-	                    // save it.
-	                    $maybe_revision = wp_is_post_revision($post_ID);
-	                    if ( $maybe_revision !== false ) {
-	                        $post_ID = $maybe_revision;
-	                    }
-	                    if ( ! empty($postmeta) ) {
-	                        $this->update_postmeta($post_ID, static::$prefix, $postmeta);
-	                    } else {
-	                        $this->delete_postmeta($post_ID, static::$prefix);
-	                    }
-	                }
-	            }
-	        }
-	    }
+		public function save_post( $post_ID, $post, $update ) {
+			// verify if this is an auto save routine.
+			// If it is our form has not been submitted, so we don't want to do anything.
+			if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
+				return;
+			}
+			if ( empty($update) ) {
+				return;
+			}
+			// verify this came from the our screen and with proper authorization
+			// because save_post can be triggered at other times
+			if ( isset($_POST, $_POST[ $this->plugin_name . '::add_meta_box' ]) ) {
+				if ( wp_verify_nonce($_POST[ $this->plugin_name . '::add_meta_box' ], static::$plugin_basename) ) {
+					// get values.
+					$postmeta_arr = $this->get_postmeta_array();
+					$postmeta = array();
+					foreach ( $postmeta_arr as $value ) {
+						$name = static::$prefix . '_' . $value;
+						if ( ! isset($_POST[ $name ]) ) {
+							continue;
+						}
+						if ( $this->empty_notzero($_POST[ $name ]) ) {
+							continue;
+						}
+						$postmeta[ $value ] = wp_unslash($_POST[ $name ]);
+					}
+					// save it.
+					$maybe_revision = wp_is_post_revision($post_ID);
+					if ( $maybe_revision !== false ) {
+						$post_ID = $maybe_revision;
+					}
+					if ( ! empty($postmeta) ) {
+						$this->update_postmeta($post_ID, static::$prefix, $postmeta);
+					} else {
+						$this->delete_postmeta($post_ID, static::$prefix);
+					}
+				}
+			}
+		}
 
 		/* public */
 
-        public function init() {
-            $this->add_shortcode_wpautop_control($this->shortcode);
-        }
+		public function init() {
+			$this->add_shortcode_wpautop_control($this->shortcode);
+		}
 
 		public function template_redirect() {
 			if ( is_404() ) {
@@ -324,7 +321,7 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			}
 			list($post_ID, $post) = $this->get_post_ID_post();
 
-            $allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
+			$allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
 			if ( ! in_array($post->post_type, $allowed_post_types, true) ) {
 				return;
 			}
@@ -384,7 +381,7 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			}
 
 			$i = count($posts);
-            $allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
+			$allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
 
 			foreach ( $posts as $key => $post ) {
 				if ( ! in_array($post->post_type, $allowed_post_types, true) ) {
@@ -440,7 +437,7 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 		public function the_content( $str = '' ) {
 			list($post_ID, $post) = $this->get_post_ID_post();
 
-            $allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
+			$allowed_post_types = $this->get_options_context('db', 'allowed_post_types');
 			if ( ! in_array($post->post_type, $allowed_post_types, true) ) {
 				return $str;
 			}
@@ -490,10 +487,10 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 		}
 
 		public function wp_get_nav_menu_items( $items ) {
-	        $show_items = array();
-	        foreach ( $items as $key => $item ) {
-	        	$post_ID = $item->object_id;
-	        	$postmeta = array();
+			$show_items = array();
+			foreach ( $items as $key => $item ) {
+				$post_ID = $item->object_id;
+				$postmeta = array();
 				// check saved.
 				if ( array_key_exists($post_ID, self::$blocked_posts) ) {
 					$postmeta = $this->post_has_recursive_access_rules($post_ID, self::$blocked_posts[ $post_ID ]);
@@ -535,10 +532,10 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 						continue;
 					}
 				}
-	            $show_items[ $key ] = $item;
-	        }
-	        return $show_items;
-	    }
+				$show_items[ $key ] = $item;
+			}
+			return $show_items;
+		}
 
 		public function wp_login_errors( $errors, $redirect_to ) {
 			$cookie_name = static::$prefix . '::' . __FUNCTION__;
@@ -608,20 +605,20 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			return apply_filters('wpaccess_shortcode', $content);
 		}
 
-        /* functions - options */
+		/* functions - options */
 
-        protected function get_options_default() {
-            return apply_filters(static::$prefix . '_options_default',
-                array(
-                    'active' => false,
-                    'blocked_message' => 'Access denied.',
-                    'allowed_post_types' => array(),
-                    'hidden_roles' => array(),
-                )
-            );
-        }
+		protected function get_options_default() {
+			return apply_filters(static::$prefix . '_options_default',
+				array(
+					'active' => false,
+					'blocked_message' => 'Access denied.',
+					'allowed_post_types' => array(),
+					'hidden_roles' => array(),
+				)
+			);
+		}
 
-	    private function get_postmeta_array() {
+		private function get_postmeta_array() {
 			return array(
 				'roles',
 				'logged_in',
@@ -630,9 +627,9 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 				'blocked_message',
 				'login_redirect',
 			);
-	    }
+		}
 
-        /* functions */
+		/* functions */
 
 		private function get_post_ID_post() {
 			global $post;
@@ -642,12 +639,10 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			if ( empty($post_ID) && is_singular() ) {
 				// some plugins (buddypress) hide the real post_id in queried_object_id.
 				global $wp_query;
-				if ( isset($wp_query->queried_object_id) ) {
-					if ( ! empty($wp_query->queried_object_id) ) {
-						$post_ID = $wp_query->queried_object_id;
-						if ( isset($wp_query->queried_object) ) {
-							$my_post = $wp_query->queried_object;
-						}
+				if ( isset($wp_query->queried_object_id) && ! empty($wp_query->queried_object_id) ) {
+					$post_ID = $wp_query->queried_object_id;
+					if ( isset($wp_query->queried_object) ) {
+						$my_post = $wp_query->queried_object;
 					}
 				}
 			}
@@ -696,10 +691,8 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 				'logged_out',
 			);
 			foreach ( $postmeta_arr as $value ) {
-				if ( isset($postmeta[ $value ]) ) {
-					if ( ! empty($postmeta[ $value ]) ) {
-						return $postmeta;
-					}
+				if ( isset($postmeta[ $value ]) && ! empty($postmeta[ $value ]) ) {
+					return $postmeta;
 				}
 			}
 			return false;
@@ -710,27 +703,23 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 				$postmeta = $this->post_has_access_rules($post_ID);
 			}
 			if ( $postmeta !== false ) {
-				if ( isset($postmeta['recursive']) ) {
-					if ( ! empty($postmeta['recursive']) ) {
-						return $postmeta;
-					}
+				if ( isset($postmeta['recursive']) && ! empty($postmeta['recursive']) ) {
+					return $postmeta;
 				}
 			}
 			return false;
 		}
 
 		private function post_has_login_redirect( $postmeta = array() ) {
-			if ( isset($postmeta['login_redirect']) ) {
-				if ( ! empty($postmeta['login_redirect']) ) {
-					return true;
-				}
+			if ( isset($postmeta['login_redirect']) && ! empty($postmeta['login_redirect']) ) {
+				return true;
 			}
 			return false;
 		}
 
 		private function blocked_message( $str = '' ) {
 			if ( empty($str) ) {
-            	$blocked_message = $this->get_options_context('db', 'blocked_message');
+				$blocked_message = $this->get_options_context('db', 'blocked_message');
 				if ( ! empty($blocked_message) ) {
 					$str = $blocked_message;
 				}
@@ -881,54 +870,54 @@ if ( ! class_exists('Halftheory_WP_Access', false) && class_exists('Halftheory_H
 			if ( empty($wp_filter['the_content']->callbacks) ) {
 				return $str;
 			}
-		 	foreach ( $wp_filter['the_content']->callbacks as $priority => $filters ) {
-		 		foreach ( $filters as $key => $filter ) {
-		 			if ( ! isset($filter['function']) ) {
-		 				continue;
-		 			}
-		 			if ( ! empty($break_before) ) {
-			 			if ( is_string($break_before) && is_string($filter['function']) && $break_before === $filter['function'] ) {
-		 					return $str;
-			 			} elseif ( is_array($break_before) && is_array($filter['function']) && $break_before === $filter['function'] ) {
-		 					return $str;
-				 		}
-		 			}
-		 			if ( is_string($filter['function']) ) {
-		 				$func = $filter['function'];
-		 				$str = $func($str);
-		 			} elseif ( is_array($filter['function']) ) {
-		 				$func0 = $filter['function'][0];
-		 				$func1 = $filter['function'][1];
-		 				$str = $func0->$func1($str);
-		 			}
-		 			if ( ! empty($break_after) ) {
-			 			if ( is_string($break_after) && is_string($filter['function']) && $break_after === $filter['function'] ) {
-		 					return $str;
-			 			} elseif ( is_array($break_after) && is_array($filter['function']) && $break_after === $filter['function'] ) {
-		 					return $str;
-				 		}
-		 			}
-		 		}
-		 	}
-		 	return $str;
+			foreach ( $wp_filter['the_content']->callbacks as $priority => $filters ) {
+				foreach ( $filters as $key => $filter ) {
+					if ( ! isset($filter['function']) ) {
+						continue;
+					}
+					if ( ! empty($break_before) ) {
+						if ( is_string($break_before) && is_string($filter['function']) && $break_before === $filter['function'] ) {
+							return $str;
+						} elseif ( is_array($break_before) && is_array($filter['function']) && $break_before === $filter['function'] ) {
+							return $str;
+						}
+					}
+					if ( is_string($filter['function']) ) {
+						$func = $filter['function'];
+						$str = $func($str);
+					} elseif ( is_array($filter['function']) ) {
+						$func0 = $filter['function'][0];
+						$func1 = $filter['function'][1];
+						$str = $func0->$func1($str);
+					}
+					if ( ! empty($break_after) ) {
+						if ( is_string($break_after) && is_string($filter['function']) && $break_after === $filter['function'] ) {
+							return $str;
+						} elseif ( is_array($break_after) && is_array($filter['function']) && $break_after === $filter['function'] ) {
+							return $str;
+						}
+					}
+				}
+			}
+			return $str;
 		}
 
-        /* functions-common */
+		/* functions-common */
 
-	    private function trim_quotes( $str = '' ) {
-            if ( function_exists(__FUNCTION__) ) {
-                $func = __FUNCTION__;
-                return $func($str);
-            }
-	        if ( is_string($str) ) {
-	            $str = trim($str, " \n\r\t\v\0'" . '"');
-	        } elseif ( is_array($str) ) {
-	            $str = array_map(array( $this, __FUNCTION__ ), $str);
-	        }
-	        return $str;
-	    }
-    }
+		private function trim_quotes( $str = '' ) {
+			if ( function_exists(__FUNCTION__) ) {
+				$func = __FUNCTION__;
+				return $func($str);
+			}
+			if ( is_string($str) ) {
+				$str = trim($str, " \n\r\t\v\0'" . '"');
+			} elseif ( is_array($str) ) {
+				$str = array_map(array( $this, __FUNCTION__ ), $str);
+			}
+			return $str;
+		}
+	}
 
 	// Load the plugin.
-    Halftheory_WP_Access::get_instance(true, plugin_basename(__FILE__));
+	Halftheory_WP_Access::get_instance(true, plugin_basename(__FILE__));
 endif;
